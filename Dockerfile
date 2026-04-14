@@ -1,16 +1,23 @@
-FROM node:18
+FROM node:18-slim
 
-# Install Python & FFmpeg agar yt-dlp bisa convert ke MP3
-RUN apt-get update && apt-get install -y python3 ffmpeg
+# Install dependencies sistem
+RUN apt-get update && \
+    apt-get install -y python3 ffmpeg curl && \
+    apt-get clean
 
 WORKDIR /app
 
-COPY package.json ./
+# Copy package files
+COPY package*.json ./
+
+# Install npm dependencies
 RUN npm install
 
+# Copy sisa kodingan
 COPY . .
 
-# Railway akan memberikan PORT secara dinamis
+# Set environment variable agar Railway bisa jalan
+ENV PORT=3000
 EXPOSE 3000
 
 CMD ["node", "server.js"]
