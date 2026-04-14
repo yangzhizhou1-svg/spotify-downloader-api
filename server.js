@@ -1,39 +1,41 @@
 const express = require('express');
 const cors = require('cors');
-const ytDl = require('yt-dlp-exec');
+const ytdl = require('ytdl-core');
+const yts = require('yt-search');
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// 1. Endpoint untuk ambil info lagu
 app.get('/api/info', async (req, res) => {
     const { url } = req.query;
     try {
-        // Menggunakan yt-dlp untuk ambil metadata
-        const info = await ytDl(url, {
-            dumpSingleJson: true,
-            noCheckCertificates: true,
-        });
-
+        const r = await yts(url);
+        const video = r.videos[0];
         res.json({
-            title: info.title,
-            artist: info.uploader || 'Unknown Artist',
-            cover: info.thumbnail,
-            duration: new Date(info.duration * 1000).toISOString().substr(14, 5),
-            downloadUrl: url // Kita teruskan URL asli ke downloader
+            title: video.title,
+            artist: video.author.name,
+            cover: video.thumbnail,
+            duration: video.timestamp,
+            downloadUrl: video.url
         });
     } catch (err) {
-        res.status(500).json({ error: "Gagal ambil info lagu" });
+        res.status(500).json({ error: "Gagal ambil info" });
     }
 });
 
-// 2. Endpoint untuk proses download (streaming file)
 app.get('/api/download', async (req, res) => {
-    const { url } = req.query;
+    const { url, title } = req.query;
     try {
-        // Header agar browser mengenali ini sebagai file MP3
-        res.header('Content-Disposition', 'attachment; filename="music.mp3"');
+        res.header('Content-Disposition', `attachment; filename="${title || 'music'}.mp3"`);
+        ytdl(url, { filter: 'audioonly', quality: 'highestaudio' }).pipe(res);
+    } catch (err) {
+        res.status(500).send("Gagal download");
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, "0.0.0.0", () => console.log(`Server ON port ${PORT}`));
         res.header('Content-Type', 'audio/mpeg');
 
         // Proses download langsung di-stream ke response browser
